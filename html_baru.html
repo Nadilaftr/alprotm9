@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Praktikum TM 9 Alpro 2</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      background-color: #abcdef;
+      text-align: left;
+    }
+
+    h1 {
+      font-weight: bold;
+      font-size: 36px;
+      color: #0077b6;
+    }
+
+    label {
+      font-weight: bold;
+      width: 100px;
+      display: inline-block;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 2px solid #ff9a8b;
+      border-radius: 10px;
+    }
+
+    button {
+      font-weight: bold;
+      padding: 12px 24px;
+      background-color: #ff9a8b;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+
+    button:hover {
+      background-color: #ff6b6b;
+    }
+
+    #table-container {
+      display: block;
+      width: 90%;
+      margin: 20px auto;
+    }
+
+    table {
+      font-family: Arial, sans-serif;
+      width: 100%;
+      border-radius: 8px;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th, td {
+      border: 1px solid #0077b6;
+      padding: 8px;
+      text-align: center;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    th {
+      background-color: #ff9a8b;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    .table-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .table-controls-left {
+      display: flex;
+      align-items: center;
+    }
+
+    .table-controls-right {
+      display: flex;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Selamat Datang di Program Display dan Penambahan Data Tabel!</h1>
+
+  <label for="url">Link JSON:</label>
+  <input type="text" id="url" placeholder="url" value="https://nadilafitri2.alwaysdata.net/utsbaru/csvtojsonnad.php">
+  <button onclick="fetchData()">Submit</button>
+
+  <form id="data-form">
+    <label for="id">ID:</label>
+    <input type="text" id="id" name="id" required>
+
+    <label for="F_name">First Name:</label>
+    <input type="text" id="F_name" name="F_name" required>
+
+    <label for="L_name">Last Name:</label>
+    <input type="text" id="L_name" name="L_name" required>
+
+    <label for="email">Email:</label>
+    <input type="text" id="email" name="email" required>
+
+    <label for="email2">Email 2:</label>
+    <input type="text" id="email2" name="email2" required>
+
+    <label for="profesi">Profesi:</label>
+    <input type="text" id="profesi" name="profesi" required>
+
+    <button type="button" onclick="addData()">Tambah Data</button>
+  </form>
+
+  <div id="table-container">
+    <div class="table-controls">
+      <div class="table-controls-left">
+        <span>Tampilkan</span>
+        <select id="entries-select"
+          onchange="entriesPerPage = parseInt(this.value); currentPage = 1; displayTableData(); updatePagination();">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+        <span>entri</span>
+      </div>
+      <div class="table-controls-right">
+        <span>Cari: </span>
+        <input type="text" id="search-input" oninput="searchTable()" />
+      </div>
+    </div>
+
+    <table id="data-table"></table>
+  </div>
+
+  <div id="pagination">
+    <button id="pagination-prev" onclick="changePage(-1);" style="float: left;">Sebelumnya</button>
+    <span id="pagination-info" style="display: inline-block; margin: 0 auto;"></span>
+    <button id="pagination-next" onclick="changePage(1);" style="float: right;">Selanjutnya</button>
+  </div>
+
+  <script>
+    let tableData = []; 
+    let filteredData = []; 
+    let sortedData = []; 
+
+    function fetchData() {
+      const urlInput = document.getElementById('url').value;
+      const tableContainer = document.getElementById('table-container');
+      const dataTable = document.getElementById('data-table');
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          tableData = JSON.parse(xhr.responseText);
+          filteredData = tableData; 
+          sortedData = tableData; 
+
+          dataTable.innerHTML = '';
+
+          const headerRow = document.createElement('tr');
+          for (const key in tableData[0]) {
+            if (tableData[0].hasOwnProperty(key)) {
+              const headerCell = document.createElement('th');
+              headerCell.textContent = key;
+              headerCell.onclick = function () {
+                sortTable(key);
+              };
+              headerRow.appendChild(headerCell);
+            }
+          }
+          dataTable.appendChild(headerRow);
+
+          tableData.forEach(function (item) {
+            const dataRow = document.createElement('tr');
+            for (const key in item) {
+              if (item.hasOwnProperty(key)) {
+                const dataCell = document.createElement('td');
+                dataCell.textContent = item[key];
+                dataRow.appendChild(dataCell);
+              }
+            }
+            dataTable.appendChild(dataRow);
+          });
+
+          tableContainer.style.display = 'block';
+          sortTable(Object.keys(tableData[0])[0]);
+          displayTableData();
+          updatePagination();
+        }
+      };
+
+      xhr.open('GET', urlInput, true);
+      xhr.send();
+    }
+
+    let currentPage = 1;
+    let entriesPerPage = 10;
+
+    function displayTableData() {
+      const startIndex = (currentPage - 1) * entriesPerPage;
+      const endIndex = Math.min(startIndex + entriesPerPage, filteredData.length);
+
+      for (let i = 1; i < dataTable.rows.length; i++) {
+        dataTable.rows[i].style.display = 'none';
+      }
+
+      for (let i = startIndex + 1; i < endIndex; i++) {
+        dataTable.rows[i].style.display = '';
+      }
+    }
+
+    function updatePagination() {
+      const totalEntries = filteredData.length;
+      const totalPages = Math.ceil(totalEntries / entriesPerPage);
+      const paginationInfo = `Menampilkan ${currentPage} - ${Math.min(currentPage * entriesPerPage, totalEntries)} dari ${totalEntries} entri`;
+
+      document.getElementById('pagination-info').textContent = paginationInfo;
+      document.getElementById('pagination-prev').disabled = currentPage === 1;
+      document.getElementById('pagination-next').disabled = currentPage >= totalPages;
+    }
+
+    function sortTable(columnName) {
+      const headerRow = dataTable.rows[0];
+      const columnIndex = Array.from(headerRow.cells).findIndex(cell => cell.textContent === columnName);
+
+      sortedData.sort((a, b) => {
+        const valueA = a[columnName].toString().toLowerCase();
+        const valueB = b[columnName].toString().toLowerCase();
+        return valueA.localeCompare(valueB);
+      });
+
+      filteredData = sortedData;
+
+      dataTable.innerHTML = '';
+      dataTable.appendChild(headerRow);
+      sortedData.forEach(item => {
+        const dataRow = document.createElement('tr');
+        for (const key in item) {
+          const dataCell = document.createElement('td');
+          dataCell.textContent = item[key];
+          dataRow.appendChild(dataCell);
+        }
+        dataTable.appendChild(dataRow);
+      });
+
+      displayTableData();
+      updatePagination();
+    }
+
+    function searchTable() {
+    const searchInput = document.getElementById('search-input').value.toLowerCase();
+    const dataTable = document.getElementById('data-table');
+    const rows = Array.from(dataTable.getElementsByTagName('tr'));
+
+    rows.shift();
+    rows.forEach(row => {
+      const cells = row.getElementsByTagName('td');
+      const rowText = Array.from(cells).map(cell => cell.textContent).join(' ').toLowerCase();
+      if (rowText.includes(searchInput)) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  function changePage(offset) {
+    currentPage += offset;
+    if (currentPage < 1) {
+      currentPage = 1;
+    }
+    displayTableData();
+    updatePagination();
+}
+    function addData() {
+      const formData = new FormData(document.getElementById('data-form'));
+      const xhr = new XMLHttpRequest();
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+          fetchData(); 
+        }
+      };
+      xhr.open('POST', 'kode1.php', true);
+      xhr.send(formData);
+    }
+
+    const dataTable = document.getElementById('data-table');
+    window.onload = () => {
+      fetchData();
+    }
+  </script>
+</body>
+</html>
